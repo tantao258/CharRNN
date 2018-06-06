@@ -4,7 +4,6 @@ import pickle
 import os
 from gensim.models import Word2Vec
 
-
 class TextConverter(object):
     def __init__(self, filename=None):
         # filename is not None，加载实现保存好的词典数据
@@ -65,7 +64,6 @@ class TextConverter(object):
             pickle.dump(self.int_to_word_table, f)
             pickle.dump(self.word_to_vector, f)
 
-
 def data_loader(filePath, converter):
     text_arr = []  # 将所有文本读成一行，并转化为对应索引
     with open(filePath, 'r', encoding='utf-8') as f:
@@ -75,17 +73,16 @@ def data_loader(filePath, converter):
                     text_arr.append(converter.word_to_int(i))
     return text_arr
 
-
-def batch_generator(arr, batch_size, n_steps, window_size=1):
+def batch_generator(arr, batch_size, n_steps, n_inputs, n_classes, window_size=1, converter=None):
     train_arr = []
     target_arr = []
     i = 0
     while (i * window_size + n_steps + 1) < len(arr):
         train_arr.append(arr[i * window_size: i * window_size + n_steps])
-        target_arr.append(arr[i * window_size + n_steps])
+        target_arr.append(arr[i * window_size+1: i * window_size + n_steps+1])
         i += 1
     train_arr = np.array(train_arr)
-    target_arr = np.reshape(np.array(target_arr), (-1,))
+    target_arr = np.array(target_arr)
 
     while True:
         for n in range(0, train_arr.shape[0], batch_size):
@@ -94,4 +91,17 @@ def batch_generator(arr, batch_size, n_steps, window_size=1):
                 x = train_arr[n:n + batch_size, ]
                 y = target_arr[n:n + batch_size, ]
 
-            yield x, y, n_batches
+                #embedding layer
+                xx = np.zeros((batch_size, n_steps, n_inputs))
+                for i in range(xx.shape[0]):
+                    for j in range(xx.shape[1]):
+                        xx[i, j, :] = converter.int_to_vector(x[i, j])
+
+                yy = np.zeros((batch_size, n_steps, n_classes))
+                for i in range(yy.shape[0]):
+                    for j in range(yy.shape[1]):
+                        temp=np.zeros((1,n_classes))
+                        temp[0,y[i,j]-1]=1
+                        yy[i, j, :] =temp
+
+            yield xx, yy, n_batches

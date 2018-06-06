@@ -3,7 +3,7 @@ from LSTM import *
 from read_utils import *
 
 # 超参数设置
-tf.app.flags.DEFINE_string("filePath", "trainData/骆驼祥子.txt", "utf8 encoded text file")  # 训练语料文件
+tf.app.flags.DEFINE_string("filePath", "trainData/时间简史.txt", "utf8 encoded text file")  # 训练语料文件
 tf.app.flags.DEFINE_integer("batch_size", 128, "batch_size")
 tf.app.flags.DEFINE_integer("window_size", 1, "window_size")
 tf.app.flags.DEFINE_integer("n_steps", 30, "n_steps")
@@ -12,6 +12,7 @@ tf.app.flags.DEFINE_integer("n_classes", 10, "n_classes")
 tf.app.flags.DEFINE_integer("lstm_size", 128, "lstm_size")
 tf.app.flags.DEFINE_integer("n_layers", 2, "n_layers")
 tf.app.flags.DEFINE_float("keep_prob", 0.8, "Dropout")
+tf.app.flags.DEFINE_float("epoches", 20, "epoches")
 tf.app.flags.DEFINE_float("learning_rate", 0.001, "learning_rate")
 tf.app.flags.DEFINE_string('checkpoint_path', 'model/', 'checkpoint path')
 tf.app.flags.DEFINE_integer('max_length', 30, 'max length to generate')
@@ -36,7 +37,7 @@ def train():
         print('词典、词表创建完成！')
 
     # 打开训练集数据，将text文本转化为数组,形如[1,4,5,,67,3]
-    trainData_path = os.path.join('trainData', '骆驼祥子.pkl')
+    trainData_path = os.path.join('trainData', '时间简史.pkl')
     if os.path.exists(trainData_path):
         with open(trainData_path, 'rb') as f:
             text_arr = pickle.load(f)
@@ -48,15 +49,8 @@ def train():
         print('训练数据读取并固化完成！')
 
     # batch_generator，输出x,y数据shape=[batch_size, n_steps, n_inputs]
-    g = batch_generator(text_arr, Flags.batch_size, Flags.n_steps, Flags.window_size)
-    '''
-    counter=0
-    for x,y,n_batches in g:
-        print(x.shape)
-        counter+=1
-        if counter==5:
-            exit()
-    '''
+    g = batch_generator(text_arr, Flags.batch_size, Flags.n_steps, Flags.n_inputs,
+                        converter.vocab_size(), Flags.window_size, converter=converter)
 
     # 创建对象lstm
     lstm = LSTM(sampling=False,
@@ -68,10 +62,9 @@ def train():
                 keep_prob=Flags.keep_prob,
                 batch_size=Flags.batch_size,
                 learning_rate=Flags.learning_rate,
-                batch_generator=g
                 )
 
-    lstm.train_model(converter=converter)
+    lstm.train_model(batch_generator= g, epoches=Flags.epoches)
 
 
 def sample():
