@@ -5,12 +5,15 @@ import numpy as np
 
 class LSTM(object):
     def __init__(self, sampling=False, n_classes=10, n_steps=28, n_inputs=256, lstm_size=128, n_layers=2,
-                 batch_size=128, keep_prob=0.8, learning_rate=0.001):
+                 batch_size=128, keep_prob=0.8, grad_clips=5,learning_rate=0.001):
+
+        tf.reset_default_graph()## 模型的训练和预测放在同一个文件下时如果没有这个函数会报错。
+
         # 构造成员变量
         if sampling is True:
-            batch_size, n_steps, keep_prob=1,1,1
+            batch_size, n_steps, keep_prob = 1, 1, 1
         else:
-            batch_size, n_steps, keep_prob =batch_size, n_steps, keep_prob
+            batch_size, n_steps, keep_prob = batch_size, n_steps, keep_prob
 
         self.n_classes = n_classes
         self.n_steps = n_steps
@@ -19,6 +22,7 @@ class LSTM(object):
         self.n_layers = n_layers
         self.batch_size = batch_size
         self.keep_prob = keep_prob
+        self.grad_clips=grad_clips
         self.learning_rate = learning_rate
 
         # 成员方法
@@ -53,10 +57,10 @@ class LSTM(object):
     def build_loss(self):
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.target))
 
-    def build_optimizer(self, grad_clips=1):
+    def build_optimizer(self):
         # 使用cliping gradients
         tvars = tf.trainable_variables()
-        grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), grad_clips)
+        grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), self.grad_clips)
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(zip(grads, tvars))
 
     def train_model(self, batch_generator, epoches=20):
@@ -78,21 +82,22 @@ class LSTM(object):
                 if epoch == epoches + 1:
                     break
 
-
     def sample(self, n_samples, start_string_arr, converter):
         # 定义samples为输出列表[1,4,6,4]
         samples = [i for i in start_string_arr]
-        sess = self.session
-        new_state = sess.run(self.initial_state)
 
-        for i in range(n_samples):
-            x = converter.int_to_vector(samples[len(samples) - 1])
-            x = np.reshape(x, (1, 1, 256))
-            preds, new_state = sess.run([self.prediction, self.final_state],
-                                        feed_dict={self.inputs: x, self.initial_state: new_state})
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            new_state = sess.run(self.initial_state)
 
-            p = np.squeeze(preds)
-            samples.append(np.argmax(list(p)) + 1)
+            for i in range(n_samples):
+                # 取最后一个字并转化为向量
+                x = converter.int_to_vector(samples[len(samples) - 1])
+                x = np.reshape(x, (1, 1, 256))
+                predicton, new_state = sess.run([self.prediction, self.final_state], feed_dict={self.inputs: x, self.initial_state: new_state})
+                #输出prediciton.shape=[1,1,n_classes],np.squeeze将prediction去掉无用的维度，变成[n_classes,]
+                p = np.squeeze(predicton)
+                samples.append(np.argmax(list(p)) + 1)
 
         return np.array(samples)
 

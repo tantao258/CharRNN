@@ -83,14 +83,8 @@ def sample():
         Flags.checkpoint_path = tf.train.latest_checkpoint(Flags.checkpoint_path)
 
     # 创建对象lstm
-    lstm = LSTM(sampling=True,
-                n_classes=converter.vocab_size(),
-                n_inputs=Flags.n_inputs,
-                lstm_size=Flags.lstm_size,
-                n_layers=Flags.n_layers,
-                keep_prob=1,
-                )
-
+    lstm = LSTM(sampling=True, n_classes=converter.vocab_size(), n_inputs=Flags.n_inputs,
+                lstm_size=Flags.lstm_size, n_layers=Flags.n_layers)
     # 加载模型参数
     lstm.load(Flags.checkpoint_path)
 
@@ -107,5 +101,5 @@ def sample():
 
 
 if __name__ == "__main__":
-    train()
-    # sample()
+    #train()
+    sample()
